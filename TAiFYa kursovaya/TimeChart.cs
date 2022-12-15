@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -35,28 +36,34 @@ namespace TAiFYa_kursovaya
             base.WndProc(ref message);
         }
 
-        CancellationTokenSource cts1;
-        CancellationTokenSource cts2;
-        private async Task buildChart()
+        CancellationTokenSource cts;
+        private async Task buildChart(CancellationToken ctst)
         {
-            if (cts1 != null && cts2 != null)
+            if (cts != null)
             {
                 try
                 {
                     while (checkstart.Checked)
                     {
-                    
-                        int count1 = chart.Series[0].Points.Count;
-                        int res1 = await Task.Run(() => STTuringMachine.Evaluate(count1), cts1.Token);
-                        chart.Series[0].Points.AddXY(count1, res1);
 
+                        int count1 = chart.Series[0].Points.Count;
                         int count2 = chart.Series[1].Points.Count;
-                        int res2 = await Task.Run(() => MTTuringMachine.Evaluate(count1), cts2.Token);
-                        chart.Series[1].Points.AddXY(count2, res2);
-                    }                    
+                        Tuple<int, int> res1 = await Task.Run(() =>
+                        {
+                            int r1 = STTuringMachine.Evaluate(count1, ctst);
+                            int r2 = MTTuringMachine.Evaluate(count2, ctst);
+                            return new Tuple<int, int>(r1, r2);
+                        }, ctst);
+
+                        ctst.ThrowIfCancellationRequested();
+                        if (res1 != null)
+                        {
+                            chart.Series[0].Points.AddXY(count1, res1.Item1);
+                            chart.Series[1].Points.AddXY(count2, res1.Item2);
+                        }
+                    }
                 }
-                catch (NullReferenceException) { }
-                finally { cts1 = null; cts2 = null; }
+                catch (OperationCanceledException) { }
             }
         }
         
@@ -69,9 +76,8 @@ namespace TAiFYa_kursovaya
 
                 clearchart.Enabled = false;
 
-                cts1 = new CancellationTokenSource();
-                cts2 = new CancellationTokenSource();
-                await buildChart();
+                cts = new CancellationTokenSource();
+                await buildChart(cts.Token);
             }
             else
             {
@@ -79,10 +85,8 @@ namespace TAiFYa_kursovaya
                 checkstart.BackColor = Form.DefaultBackColor;
                 clearchart.Enabled = true;
 
-                cts1.Cancel();
-                cts1 = null;
-                cts2.Cancel();
-                cts2 = null;
+                cts.Cancel();
+                cts = null;
             }
         }
 

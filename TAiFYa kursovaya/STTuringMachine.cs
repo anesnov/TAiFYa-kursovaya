@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -186,12 +187,13 @@ namespace TAiFYa_kursovaya
             }            
         }
 
-        public static int Evaluate(int length)
+        public static int Evaluate(int length, CancellationToken cts)
         {
             int max = 0;
 
             for (ulong i = 0; i < (ulong)Math.Pow(2, length); i++)
             {
+                cts.ThrowIfCancellationRequested();
                 string str = Convert.ToString((long)i, 2);
                 StringBuilder sb = new StringBuilder(new string('0', length > 0 ? length - str.Length : 0) + str);
                 max = Math.Max(max, Run(sb));
